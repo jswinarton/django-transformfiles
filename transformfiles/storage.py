@@ -16,14 +16,16 @@ class OperationNotAllowed(Exception):
 
 
 class TransformfilesStorage(FileSystemStorage):
-    """A storage class that manages the storage and retrieval of build files
+    """A storage class that manages the retrieval of files in the manifest
 
-    Calls to basic read operations will return the compiled file, compiling
-    it if it does not exist or is out of date. The class also includes utility
-    functions for handling the compile process manually.
+    If this class receives a call to access any file that is listed in the
+    manifest, it will return the compiled version of that file, recompiling on
+    the fly if the compiled file does not exist or is out of date.
+
+    This storage backs a temporary folder that is empty on initialization.
     """
     def __init__(self, location=None, base_url=None, *args, **kwargs):
-        # keep a reference available to the temp directory so it is not
+        # keep a reference available to the directory object so it is not
         # garbage collected until this class is destroyed
         self.tmpdir = tempfile.TemporaryDirectory()
 
@@ -52,7 +54,6 @@ class TransformfilesStorage(FileSystemStorage):
         if not os.path.exists(basedir):
             os.makedirs(basedir)
 
-        # TODO support multiple input files
         src = config.src
         bufin = src.storage.open(src.path, 'r')
 
