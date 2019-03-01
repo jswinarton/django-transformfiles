@@ -17,6 +17,14 @@ setup(
     package_data={
         'transformfiles': ['management/commands/*'],
     },
+    install_requires=[],
+    setup_requires=[
+        'pytest-runner==4.4',
+    ],
+    tests_require=[
+        'Django==2.1.7',
+        'pytest==4.2.1',
+    ],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Framework :: Django',

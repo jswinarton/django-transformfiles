@@ -11,11 +11,11 @@ class TransformfilesFinder(BaseFinder):
     def find(self, path, all=False):
         # TODO handle properly if all=True, or at least document why it's not
         # relevant here
-        path = transformfiles_manifest.find(path).build
+        path = transformfiles_manifest.find(path).build_path
         transformfiles_storage.compile(path)
         return transformfiles_storage.path(path)
 
     def list(self, ignore_patterns):
         # TODO deal with ignore_patterns sensibly
-        for entry in transformfiles_manifest.items():
+        for key, entry in transformfiles_manifest.items():
             yield entry.build, transformfiles_storage

@@ -10,9 +10,18 @@ import sass
 from transformfiles.manifest import transformfiles_manifest
 
 
-class OperationNotAllowed(Exception):
-    def __init__(self, *args, **kwargs):
-        self.args = args or ("This operation is not allowed on this storage class",)
+class Compiler:
+    def compile(self, manifest_entry, f):
+        transforms = manifest_entry.transforms.copy()
+        while transforms:
+            t = transforms.pop()
+            kwargs = {
+                'remaining_transforms': transforms,
+                'config': manifest_entry,
+            }
+
+            t(f, **kwargs)
+            f.seek(0)
 
 
 class TransformfilesStorage(FileSystemStorage):
@@ -43,40 +52,16 @@ class TransformfilesStorage(FileSystemStorage):
         time.
         """
         if force or self.is_stale(path):
-            self._compile(path)
+            manifest_entry = transformfiles_manifest.find(path)
+            buildpath = self.path(path)
+            basedir = os.path.dirname(buildpath)
+            if not os.path.exists(basedir):
+                os.makedirs(basedir)
+
+            f = manifest_entry.src_storage.open(src.path, 'r')
+            Compiler().compile(manifest_entry, f)
+
         return self.path(path)
-
-    def _compile(self, path):
-        config = transformfiles_manifest.find(path)
-        buildpath = self.path(path)
-
-        basedir = os.path.dirname(buildpath)
-        if not os.path.exists(basedir):
-            os.makedirs(basedir)
-
-        src = config.src
-        bufin = src.storage.open(src.path, 'r')
-
-        transforms = collections.deque(config.transforms)
-        while transforms:
-            bufout = io.StringIO()
-            kwargs = {
-                'remaining_transforms': transforms,
-                'config': config,
-            }
-
-            t = transforms.popleft()
-            t(bufout, bufin, **kwargs)
-
-            bufin.close()
-            bufin = bufout
-            bufin.seek(0)
-
-        with open(buildpath, 'w') as buildfile:
-            buildfile.write(bufin.read())
-            bufin.close()
-
-        return buildpath
 
     def open(self, path):
         self.compile(path)
@@ -97,9 +82,8 @@ class TransformfilesStorage(FileSystemStorage):
         This allows management tools like collectstatic to know when to recopy
         the files to STATIC_ROOT.
         """
-        config = transformfiles_manifest.find(path)
-        src = config.src
-        return src.storage.get_modified_time(src.path)
+        manifest_entry = transformfiles_manifest.find(path)
+        return manifest_entry.modified_time()
 
     def is_stale(self, path):
         """Determines if the file at path is out of date
@@ -128,6 +112,11 @@ class TransformfilesStorage(FileSystemStorage):
 
     def save(self, *args, **kwargs):
         raise OperationNotAllowed
+
+
+class OperationNotAllowed(Exception):
+    def __init__(self, *args, **kwargs):
+        self.args = args or ("This operation is not allowed on this storage class",)
 
 
 transformfiles_storage = TransformfilesStorage()
